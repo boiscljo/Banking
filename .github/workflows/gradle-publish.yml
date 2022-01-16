@@ -1,9 +1,9 @@
-name: Build and publish SBA dev edition
+name: Build and publish Banking dev edition
 
 on:
   push:
     branches: [ v1 ]
-concurrency: sba_v1
+concurrency: Banking_v1
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -33,4 +33,4 @@ jobs:
       - name: Upload the final artifact
         uses: actions/upload-artifact@v2
         with:
-          path: plugin/build/libs/SBA*[!s].jar
+          path: plugin/build/libs/Banking*[!s].jar

@@ -59,18 +59,29 @@ import java.util.stream.Collectors;
 public class CLICommand {
     static boolean init = false;
 
-    public void playNotificationSoundToPlayer(Player p)
-    {
+    public void playNotificationSoundToPlayer(Player p) {
         Runnable r = new Runnable() {
             @Override
             public void run() {
                 p.playSound(p.getLocation(), Sound.ENTITY_EXPERIENCE_ORB_PICKUP, 10, 1);
             }
         };
-        Tasker.build(r).delay(0, TaskerTime.TICKS);
-        Tasker.build(r).delay(10, TaskerTime.TICKS);
-        Tasker.build(r).delay(20, TaskerTime.TICKS);
+
+        Bukkit.getServer().getScheduler().scheduleSyncDelayedTask(Banking.getPluginInstance(), r, 10);
+        Bukkit.getServer().getScheduler().scheduleSyncDelayedTask(Banking.getPluginInstance(), r, 20);
+        Bukkit.getServer().getScheduler().scheduleSyncDelayedTask(Banking.getPluginInstance(), r, 30);
     }
+
+    public void playErrorSound(Player p) {
+        Runnable r = new Runnable() {
+            @Override
+            public void run() {
+                p.playSound(p.getLocation(), Sound.BLOCK_NOTE_BLOCK_PLING, 10, 1);
+            }
+        };
+        Bukkit.getServer().getScheduler().scheduleSyncDelayedTask(Banking.getPluginInstance(), r, 0);
+    }
+
     @OnPostEnable
     public void onPostEnabled() {
         if (init)
@@ -165,18 +176,51 @@ public class CLICommand {
             final @NotNull Player player,
             final @Argument("target") OfflinePlayer target,
             final @Argument("amount") int amount,
-            final @Argument(value = "ore", suggestions = "ores") String ore,
+            final @Argument(value = "ore", suggestions = "ores") String ore_,
             @Argument("group") String group) {
-
+      
+        Material ore = Material.matchMaterial(ore_);
+        ItemStack stack = new ItemStack(ore);
+        if (amount <= 0) {
+            player.sendMessage(
+                    BankingConfig.getInstance().logo() + "§cCannot transfer 0 or less " + stack.getI18NDisplayName());
+            playErrorSound(player);
+            return;
+        }
         var storage = Banking.getInstance().getStorage();
+        var balance = storage.getBalanceFor(ore, player, group);
         if (group == null)
             group = storage.getGroupForCurrentLocation(player);
+        
+        if (balance.getInBank() < amount) {
+            player.sendMessage(
+                    BankingConfig.getInstance().logo() + "§cYou don't have " + amount + " " + stack.getI18NDisplayName()
+                            + ", cannot transfer to " + target.getName());
+            player.sendMessage("Your current balance is " + balance.getInBank());
+            playErrorSound(player);
+            return;
+        }
 
-        var newBalance = storage.getBalanceFor(Material.matchMaterial(ore), target, group);
+        player.sendMessage(BankingConfig.getInstance().logo() + "Transfering " + amount + " "
+                + stack.getI18NDisplayName() + " to " + target.getName());
 
-        player.sendMessage(
-                "" + target.getName() + "'s " + new ItemStack(Material.matchMaterial(ore)).getI18NDisplayName()
-                        + " balance is " + newBalance.getInBank());
+        if (storage.removeFromPlayerBank(ore, player, amount, group)) {
+            if (storage.addToPlayerBank(ore, target, amount, group))
+            {
+                if(target instanceof Player)
+                {
+                    //"%{@logo}%&a%player% sent you %arg-1% %arg-2%, your new balance is %arg-3's arg-2 bank balance in player's world%"
+                    Player onlineTarget = (Player) target;
+                    onlineTarget.sendMessage(BankingConfig.getInstance().logo()+"§a"+player.getName()+" sent you "+amount+" "+ stack.getI18NDisplayName()+
+                            ", your new balance is " + storage.getBalanceFor(ore, target, group).getInBank());
+                    playNotificationSoundToPlayer(onlineTarget);
+                }
+            }
+            else
+            {
+                storage.addToPlayerBank(ore, player, amount, group);
+            }
+        }
     }
 
 }

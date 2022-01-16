@@ -2,9 +2,11 @@ package com.moyskleytech.mc.banking.config;
 
 import com.moyskleytech.mc.banking.utils.Logger;
 import net.md_5.bungee.api.ChatColor;
+import net.md_5.bungee.api.chat.BaseComponent;
 
 import org.bukkit.Material;
 import org.bukkit.plugin.java.JavaPlugin;
+import org.jetbrains.annotations.NotNull;
 import org.screamingsandals.lib.item.Item;
 import org.screamingsandals.lib.item.builder.ItemFactory;
 import org.screamingsandals.lib.plugin.ServiceManager;
@@ -181,5 +183,9 @@ public class BankingConfig {
         }
 
         return ItemFactory.build(def).orElse(ItemFactory.getAir());
+    }
+
+    public @NotNull String logo() {
+        return getString("name");
     }
 }
