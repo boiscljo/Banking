@@ -78,7 +78,7 @@ public class CommandManager {
             try {
                 manager.registerBrigadier();
             } catch (Exception e) {
-                Logger.error("Could not register Brigadier\r{}", e);
+                Logger.error("Could not register Brigadier :: \r{}", e.getCause().getCause());
             }
         }
 

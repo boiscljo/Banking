@@ -94,6 +94,11 @@ public class Storage {
         return getBalanceFor(material, (OfflinePlayer) player, groupName);
     }
 
+    private String getNamespacedKey(Material m)
+    {
+        Logger.trace("key?  {} {}",m, m.getKey().toString());
+        return m.getKey().toString();
+    }
     public BankOre getBalanceFor(Material material, OfflinePlayer player, String groupName) {
         int amount = 0;
         Connection c = null;
@@ -105,7 +110,7 @@ public class Storage {
             // pstmt.setDouble(2, capacity);
             PreparedStatement stmt = c
                     .prepareStatement("SELECT amount FROM BALANCES WHERE material=? and gp=? and uuid=?;");
-            stmt.setString(1, material.getKey().asString());
+            stmt.setString(1, getNamespacedKey(material));
             stmt.setString(2, groupName);
             stmt.setString(3, player.getUniqueId().toString());
             ResultSet rs = stmt.executeQuery();
@@ -142,14 +147,14 @@ public class Storage {
             PreparedStatement istmt = c
                     .prepareStatement("INSERT INTO BALANCES(amount,material,gp,uuid) VALUES(?,?,?,?)");
             istmt.setInt(1, amount);
-            istmt.setString(2, material.getKey().asString());
+            istmt.setString(2, getNamespacedKey(material));
             istmt.setString(3, groupName);
             istmt.setString(4, player.getUniqueId().toString());
 
             PreparedStatement ustmt = c
                     .prepareStatement("UPDATE BALANCES set amount=? where material=? and gp=? and uuid=?");
             ustmt.setInt(1, amount);
-            ustmt.setString(2, material.getKey().asString());
+            ustmt.setString(2, getNamespacedKey(material));
             ustmt.setString(3, groupName);
             ustmt.setString(4, player.getUniqueId().toString());
 
@@ -268,7 +273,7 @@ public class Storage {
     }
 
     public boolean addToPlayerBank(Material material, OfflinePlayer player, int depositable, String groupName) {
-        Logger.trace("Depositing {} {} for {} in group {}", depositable, material.getKey().asString(), player,
+        Logger.trace("Depositing {} {} for {} in group {}", depositable, getNamespacedKey(material), player,
                 groupName);
 
         var balance = getBalanceFor(material, player, groupName);
@@ -283,11 +288,14 @@ public class Storage {
     }
 
     public boolean removeFromPlayerBank(Material material, OfflinePlayer player, int withdrawable, String groupName) {
-        Logger.trace("Withdraw {} {} for {} in group {}", withdrawable, material.getKey().asString(), player,
+        Logger.trace("Withdraw {} {} for {} in group {}", withdrawable, getNamespacedKey(material), player,
                 groupName);
 
         var balance = getBalanceFor(material, player, groupName);
-        return setBalanceFor(material, player, balance.getInBank() - withdrawable, groupName);
+        if(balance.getInBank()>=withdrawable)
+            return setBalanceFor(material, player, balance.getInBank() - withdrawable, groupName);
+        else
+            return false;
     }
 
     public void setGroupForWorld(@NotNull World world, String group) {

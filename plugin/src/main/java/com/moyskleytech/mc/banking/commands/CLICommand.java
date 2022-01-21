@@ -8,7 +8,6 @@ import cloud.commandframework.annotations.suggestions.Suggestions;
 
 import com.moyskleytech.mc.banking.utils.Logger;
 import io.leangen.geantyref.TypeToken;
-import io.papermc.lib.PaperLib;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.TextColor;
 
@@ -27,17 +26,15 @@ import org.bukkit.inventory.ItemStack;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
-import org.screamingsandals.lib.npc.NPC;
-import org.screamingsandals.lib.player.PlayerMapper;
 import org.screamingsandals.lib.tasker.Tasker;
 import org.screamingsandals.lib.tasker.TaskerTime;
 import org.screamingsandals.lib.utils.Pair;
 import org.screamingsandals.lib.utils.annotations.Service;
 import org.screamingsandals.lib.utils.annotations.methods.OnPostEnable;
-import org.screamingsandals.lib.world.LocationMapper;
 import org.spongepowered.configurate.serialize.SerializationException;
 import com.moyskleytech.mc.banking.Banking;
 import com.moyskleytech.mc.banking.config.BankingConfig;
+import com.moyskleytech.mc.banking.config.LanguageConfig;
 import com.moyskleytech.mc.banking.ui.UI;
 import com.moyskleytech.mc.banking.utils.BankingUtil;
 import com.moyskleytech.mc.banking.utils.Logger.Level;
@@ -169,6 +166,73 @@ public class CLICommand {
                         + " balance is " + newBalance.getInBank());
     }
 
+    @CommandMethod("banking|bank deposit <amount> <ore>")
+    @CommandDescription("Deposit")
+    @CommandPermission("banking.groups.admin")
+    private void commandBankDeposit(
+            final @NotNull Player player,
+            final @Argument("amount") int amount,
+            final @Argument(value = "ore", suggestions = "ores") String ore) {
+
+        var storage = Banking.getInstance().getStorage();
+        var group = storage.getGroupForCurrentLocation(player);
+        Material m = Material.matchMaterial(ore);
+        var inInventory = BankingUtil.getAmountOfInInventory(m, player);
+
+        if (amount <= 0) {
+            player.sendMessage(LanguageConfig.getInstance().with(player).aboveZero());
+            return;
+        }
+        if (amount > inInventory) {
+            player.sendMessage(LanguageConfig.getInstance().with(player).ore(m).missingOre(amount));
+            return;
+        }
+        if (!BankingConfig.getInstance().oresMaterial().contains(m)) {
+            player.sendMessage(LanguageConfig.getInstance().with(player).ore(m).invalidOre());
+            return;
+        }
+        // send "%{_bankprefix}%&aDeposited %{_maxDeposit}% %{_source}%" to {_player}
+
+        if (storage.addToPlayerBank(m, player, amount, group)) {
+            BankingUtil.removeFromInventory(m, amount, player);
+
+            player.sendMessage(LanguageConfig.getInstance().with(player).ore(m).deposited(amount));
+        }
+    }
+
+    @CommandMethod("banking|bank withdraw <amount> <ore>")
+    @CommandDescription("Deposit")
+    @CommandPermission("banking.groups.admin")
+    private void commandBankWithdraw(
+            final @NotNull Player player,
+            final @Argument("amount") int amount,
+            final @Argument(value = "ore", suggestions = "ores") String ore) {
+
+        var storage = Banking.getInstance().getStorage();
+        var group = storage.getGroupForCurrentLocation(player);
+        Material m = Material.matchMaterial(ore);
+        var inInventory = BankingUtil.getAmountOfSpaceFor(m, player);
+
+        if (amount <= 0) {
+            player.sendMessage(LanguageConfig.getInstance().with(player).aboveZero());
+            return;
+        }
+        if (amount > inInventory) {
+            player.sendMessage(LanguageConfig.getInstance().with(player).ore(m).notEnoughSpace(amount));
+            return;
+        }
+        if (!BankingConfig.getInstance().oresMaterial().contains(m)) {
+            player.sendMessage(LanguageConfig.getInstance().with(player).ore(m).invalidOre());
+            return;
+        }
+
+        if (storage.removeFromPlayerBank(m, player, amount, group)) {
+            BankingUtil.addToInventory(m, amount, player);
+
+            player.sendMessage(LanguageConfig.getInstance().with(player).ore(m).withdrawed(amount));
+        }
+    }
+
     @CommandMethod("banking|bank transfer <target> <amount> <ore> [group]")
     @CommandDescription("Set the group for the current world")
     @CommandPermission("banking.groups.admin")
@@ -178,7 +242,7 @@ public class CLICommand {
             final @Argument("amount") int amount,
             final @Argument(value = "ore", suggestions = "ores") String ore_,
             @Argument("group") String group) {
-      
+
         Material ore = Material.matchMaterial(ore_);
         ItemStack stack = new ItemStack(ore);
         if (amount <= 0) {
@@ -191,7 +255,7 @@ public class CLICommand {
         var balance = storage.getBalanceFor(ore, player, group);
         if (group == null)
             group = storage.getGroupForCurrentLocation(player);
-        
+
         if (balance.getInBank() < amount) {
             player.sendMessage(
                     BankingConfig.getInstance().logo() + "§cYou don't have " + amount + " " + stack.getI18NDisplayName()
@@ -205,19 +269,17 @@ public class CLICommand {
                 + stack.getI18NDisplayName() + " to " + target.getName());
 
         if (storage.removeFromPlayerBank(ore, player, amount, group)) {
-            if (storage.addToPlayerBank(ore, target, amount, group))
-            {
-                if(target instanceof Player)
-                {
-                    //"%{@logo}%&a%player% sent you %arg-1% %arg-2%, your new balance is %arg-3's arg-2 bank balance in player's world%"
+            if (storage.addToPlayerBank(ore, target, amount, group)) {
+                if (target instanceof Player) {
+                    // "%{@logo}%&a%player% sent you %arg-1% %arg-2%, your new balance is %arg-3's
+                    // arg-2 bank balance in player's world%"
                     Player onlineTarget = (Player) target;
-                    onlineTarget.sendMessage(BankingConfig.getInstance().logo()+"§a"+player.getName()+" sent you "+amount+" "+ stack.getI18NDisplayName()+
+                    onlineTarget.sendMessage(BankingConfig.getInstance().logo() + "§a" + player.getName() + " sent you "
+                            + amount + " " + stack.getI18NDisplayName() +
                             ", your new balance is " + storage.getBalanceFor(ore, target, group).getInBank());
                     playNotificationSoundToPlayer(onlineTarget);
                 }
-            }
-            else
-            {
+            } else {
                 storage.addToPlayerBank(ore, player, amount, group);
             }
         }

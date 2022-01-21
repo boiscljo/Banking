@@ -6,7 +6,6 @@ import cloud.commandframework.annotations.CommandMethod;
 import cloud.commandframework.annotations.CommandPermission;
 import com.moyskleytech.mc.banking.utils.Logger;
 import io.leangen.geantyref.TypeToken;
-import io.papermc.lib.PaperLib;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.TextColor;
 
@@ -15,16 +14,14 @@ import org.bukkit.Location;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 import org.jetbrains.annotations.NotNull;
-import org.screamingsandals.lib.npc.NPC;
-import org.screamingsandals.lib.player.PlayerMapper;
 import org.screamingsandals.lib.tasker.Tasker;
 import org.screamingsandals.lib.tasker.TaskerTime;
 import org.screamingsandals.lib.utils.Pair;
 import org.screamingsandals.lib.utils.annotations.Service;
 import org.screamingsandals.lib.utils.annotations.methods.OnPostEnable;
-import org.screamingsandals.lib.world.LocationMapper;
 import org.spongepowered.configurate.serialize.SerializationException;
 import com.moyskleytech.mc.banking.Banking;
+import com.moyskleytech.mc.banking.config.BankingConfig;
 import com.moyskleytech.mc.banking.utils.BankingUtil;
 import com.moyskleytech.mc.banking.utils.Logger.Level;
 
@@ -56,7 +53,8 @@ public class BankingCommand {
     @CommandPermission("banking.reload")
     private void commandReload(
             final @NotNull CommandSender sender) {
-        BankingUtil.reloadPlugin(Banking.getPluginInstance());
+        //BankingUtil.reloadPlugin(Banking.getPluginInstance());
+        BankingConfig.getInstance().forceReload();
     }
 
     @CommandMethod("banking|bank dump")
@@ -95,9 +93,9 @@ public class BankingCommand {
             final @NotNull CommandSender sender) {
         final var component = Component.text("");
 
-        PlayerMapper.wrapSender(sender).sendMessage(component);
+        sender.sendMessage(component);
         final var c2 = Component.text(""); 
 
-        PlayerMapper.wrapSender(sender).sendMessage(c2);
+        sender.sendMessage(c2);
     }
 }

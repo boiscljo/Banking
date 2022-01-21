@@ -2,6 +2,7 @@ package com.moyskleytech.mc.banking;
 
 import com.moyskleytech.mc.banking.commands.CommandManager;
 import com.moyskleytech.mc.banking.config.BankingConfig;
+import com.moyskleytech.mc.banking.config.LanguageConfig;
 import com.moyskleytech.mc.banking.listeners.InventoryListener;
 import com.moyskleytech.mc.banking.placeholderapi.BankingExpansion;
 import com.moyskleytech.mc.banking.storage.Storage;
@@ -17,18 +18,12 @@ import org.bukkit.plugin.java.JavaPlugin;
 import org.jetbrains.annotations.NotNull;
 import com.moyskleytech.mc.banking.VersionInfo;
 import org.screamingsandals.lib.event.EventManager;
-import org.screamingsandals.lib.healthindicator.HealthIndicatorManager;
-import org.screamingsandals.lib.hologram.HologramManager;
-import org.screamingsandals.lib.npc.NPCManager;
-import org.screamingsandals.lib.packet.PacketMapper;
-import org.screamingsandals.lib.player.PlayerMapper;
 import org.screamingsandals.lib.plugin.PluginContainer;
 import org.screamingsandals.lib.tasker.Tasker;
 import org.screamingsandals.lib.utils.PlatformType;
 import org.screamingsandals.lib.utils.annotations.Init;
 import org.screamingsandals.lib.utils.annotations.Plugin;
 import org.screamingsandals.lib.utils.annotations.PluginDependencies;
-import org.screamingsandals.simpleinventories.SimpleInventoriesCore;
 
 import lombok.Getter;
 
@@ -40,26 +35,27 @@ import java.util.Optional;
 @PluginDependencies(platform = PlatformType.BUKKIT, dependencies = {}, softDependencies = { "PlaceholderAPI" ,"ViaVersion"})
 @Init(services = {
         Logger.class,
-        PacketMapper.class,
-        HologramManager.class,
-        HealthIndicatorManager.class,
-        SimpleInventoriesCore.class,
-        NPCManager.class,
         CommandManager.class,
         InventoryListener.class,
-        BankingConfig.class
+        BankingConfig.class,
+        LanguageConfig.class
 })
 public class Banking extends PluginContainer {
 
     private static Banking instance;
     Storage storage;
+    BankingExpansion exp;
     public static Banking getInstance() {
         return instance;
     }
-
+    
     private JavaPlugin cachedPluginInstance;
     private final List<Listener> registeredListeners = new ArrayList<>();
 
+    public BankingExpansion papi()
+    {
+        return exp;
+    }
     public static JavaPlugin getPluginInstance() {
         if (instance == null) {
             throw new UnsupportedOperationException("SBA has not yet been initialized!");
@@ -80,8 +76,9 @@ public class Banking extends PluginContainer {
     @Override
     public void postEnable() {
         if (Bukkit.getPluginManager().isPluginEnabled("PlaceholderAPI")) {
-            Logger.trace("Registering SBAExpansion...");
-            new BankingExpansion().register();
+            Logger.trace("Registering banking placeholder expansion...");
+            exp = new BankingExpansion();
+            exp.register();
         }
         storage = new Storage();
         

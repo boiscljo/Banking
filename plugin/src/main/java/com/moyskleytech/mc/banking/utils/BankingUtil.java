@@ -7,11 +7,10 @@ import org.bukkit.*;
 import org.bukkit.block.BlockFace;
 import org.bukkit.event.HandlerList;
 import org.bukkit.event.server.PluginDisableEvent;
+import org.bukkit.inventory.ItemStack;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.scheduler.BukkitTask;
 import org.jetbrains.annotations.NotNull;
-import org.screamingsandals.lib.nms.accessors.DirectionAccessor;
-import org.screamingsandals.lib.player.PlayerWrapper;
 import org.screamingsandals.lib.utils.AdventureHelper;
 import org.bukkit.entity.Player;
 import org.screamingsandals.lib.utils.reflect.Reflect;
@@ -22,6 +21,51 @@ import java.util.logging.Level;
 import java.util.stream.Collectors;
 
 public class BankingUtil {
+
+    public static int getAmountOfSpaceFor(Material m,Player player) {
+        var oneStack = new ItemStack(m).getMaxStackSize();
+        int space = 0;
+        var inventoryContent = player.getInventory().getContents();
+        for (int index = 0; index < 36; index++) {
+            var itemStack = inventoryContent[index];
+            if (itemStack == null || itemStack.getType() == Material.AIR) {
+                space += oneStack;
+            }
+        }
+
+        var inventoryStock = player.getInventory().all(m);
+        for (var stack : inventoryStock.entrySet()) {
+            space += oneStack - stack.getValue().getAmount();
+        }
+        return space;
+    }
+
+    public static void addToInventory(Material m, int withdrawable,Player player) {
+        var oneStack = new ItemStack(m).getMaxStackSize();
+        var inventoryStock = player.getInventory().all(Material.AIR);
+
+        inventoryStock = player.getInventory().all(m);
+        for (var stack : inventoryStock.entrySet()) {
+            var space = oneStack - stack.getValue().getAmount();
+            var amountToAdd = Math.min(space, withdrawable);
+            stack.getValue().setAmount(stack.getValue().getAmount() + amountToAdd);
+            withdrawable -= amountToAdd;
+        }
+
+        while(withdrawable>0)
+        {
+            var emptySlot = player.getInventory().firstEmpty();
+            if (emptySlot >= 0) {
+                var amount = Math.min(oneStack, withdrawable);
+                var stack_ = new ItemStack(m);
+                stack_.setAmount(amount);
+                player.getInventory().setItem(emptySlot, stack_);
+                withdrawable -= amount;
+            }
+        }
+    }
+
+    
     public static List<Material> parseMaterialFromConfig(List<String> materialNames) {
         final var materialList = new ArrayList<Material>();
         materialNames.stream()
@@ -142,19 +186,6 @@ public class BankingUtil {
         Bukkit.getLogger().info("Plugin reloaded! Keep in mind that restarting the server is safer!");
     }
 
-    public static void sendTitle(PlayerWrapper player, String title, String subtitle, int fadeIn, int stay,
-            int fadeOut) {
-        var titleComponent = net.kyori.adventure.title.Title.title(
-                AdventureHelper.toComponent(title),
-                AdventureHelper.toComponent(subtitle),
-                Title.Times.of(
-                        Duration.ofMillis(fadeIn * 50L),
-                        Duration.ofMillis(stay * 50L),
-                        Duration.ofMillis(fadeOut * 50L)));
-
-        player.showTitle(titleComponent);
-    }
-
     public static String capitalizeFirstLetter(@NotNull String toCap) {
         return toCap.substring(0, 1).toUpperCase() + toCap.substring(1).toLowerCase();
     }
@@ -168,5 +199,28 @@ public class BankingUtil {
             return radial[Math.round(yaw / 45f) & 0x7].getOppositeFace();
 
         return axis[Math.round(yaw / 90f) & 0x3].getOppositeFace();
+    }
+
+    public static int getAmountOfInInventory(Material material, Player player) {
+        var inventoryStock = player.getInventory().all(material);
+        int inInventory = 0;
+        for (var stack : inventoryStock.entrySet()) {
+            inInventory += stack.getValue().getAmount();
+        }
+        return inInventory;
+    }
+
+    public static void removeFromInventory(Material m, int amount, @NotNull Player player) {
+        var inventoryStock = player.getInventory().all(m);
+        for (var stack : inventoryStock.entrySet()) {
+            var count = stack.getValue().getAmount();
+            if (count > amount) {
+                stack.getValue().setAmount(count - amount);
+                break;
+            } else {
+                amount -= count;
+                player.getInventory().setItem(stack.getKey(), new ItemStack(Material.AIR));
+            }
+        }
     }
 }

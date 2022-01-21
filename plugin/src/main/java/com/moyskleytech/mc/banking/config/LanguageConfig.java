@@ -1,10 +1,16 @@
 package com.moyskleytech.mc.banking.config;
 
 import com.moyskleytech.mc.banking.utils.Logger;
+
+import net.kyori.adventure.text.ComponentBuilder;
+import net.kyori.adventure.text.minimessage.MiniMessage;
 import net.md_5.bungee.api.ChatColor;
 import net.md_5.bungee.api.chat.BaseComponent;
 import com.iridium.iridiumcolorapi.IridiumColorAPI;
 import org.bukkit.Material;
+import org.bukkit.OfflinePlayer;
+import org.bukkit.entity.Player;
+import org.bukkit.inventory.ItemStack;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.jetbrains.annotations.NotNull;
 import org.screamingsandals.lib.plugin.ServiceManager;
@@ -15,17 +21,113 @@ import org.spongepowered.configurate.ConfigurationNode;
 import org.spongepowered.configurate.serialize.SerializationException;
 import org.spongepowered.configurate.yaml.NodeStyle;
 import org.spongepowered.configurate.yaml.YamlConfigurationLoader;
+
+import me.clip.placeholderapi.PlaceholderAPI;
+
+import com.moyskleytech.mc.banking.Banking;
 import com.moyskleytech.mc.banking.utils.BankingUtil;
 import java.io.File;
 import java.util.*;
 import java.util.List;
 import java.util.stream.Collectors;
+import net.kyori.adventure.text.Component;
 
 @Service
-public class BankingConfig {
+public class LanguageConfig {
 
-    public static BankingConfig getInstance() {
-        return ServiceManager.get(BankingConfig.class);
+    public class LanguagePlaceholder {
+        private int amount;
+        private Player p;
+        private OfflinePlayer target;
+        private Material ore = Material.AIR;
+
+        public LanguagePlaceholder(Player p2) {
+            this.p = p2;
+        }
+
+        public LanguagePlaceholder ore(Material ore) {
+            this.ore = ore;
+            return this;
+        }
+
+        public LanguagePlaceholder with(Player p) {
+            this.p = p;
+            return this;
+        }
+
+        public LanguagePlaceholder target(OfflinePlayer p) {
+            this.target = p;
+            return this;
+        }
+        public LanguagePlaceholder amount(int p) {
+            this.amount = p;
+            return this;
+        }
+
+       
+        public Component deposited(int amount) {
+            this.amount = amount;
+            return of("transaction.deposit");
+        }
+
+        public Component withdrawed(int amount) {
+            this.amount = amount;
+            return of("transaction.withdraw");
+        }
+
+        public Component aboveZero() {
+            return of("above-zero");
+        }
+
+        public Component missingOre(int amount) {
+            this.amount = amount;
+            return of("missing-ore");
+        }
+
+        public Component notEnoughSpace(int amount) {
+            this.amount = amount;
+            return of("missing-space");
+        }
+        
+        public Component invalidOre() {
+            return of("invalid-ore");
+        }
+        
+        public Component of(String s)
+        {
+            Component c = MiniMessage.get().parse(placeholders(getString(s)));
+            Logger.trace("Loaded translation for {}={}", s, c);
+            return c;
+        }
+
+        
+
+        private String placeholders(String src) {
+            String process = src;
+            var papi = Banking.getInstance().papi();
+
+            process = process.replaceAll("%sender%", p.getName())
+                    .replaceAll("%ore%", new ItemStack(ore).getI18NDisplayName())
+                    .replaceAll("%logo%", BankingConfig.getInstance().logo())
+                    .replaceAll("%amount%", String.valueOf(amount));
+            if (target != null)
+                process = process.replaceAll("%target%", target.getName());
+            if (papi != null)
+                process = papi.process(process, p);
+            return process;
+        }
+
+     
+
+     
+    }
+
+    public static LanguageConfig getInstance() {
+        return ServiceManager.get(LanguageConfig.class);
+    }
+
+    public LanguagePlaceholder with(Player p) {
+        return new LanguagePlaceholder(p);
     }
 
     public JavaPlugin plugin;
@@ -36,7 +138,7 @@ public class BankingConfig {
     private YamlConfigurationLoader loader;
     private ConfigGenerator generator;
 
-    public BankingConfig(JavaPlugin plugin) {
+    public LanguageConfig(JavaPlugin plugin) {
         this.plugin = plugin;
         loadDefaults();
     }
@@ -52,7 +154,7 @@ public class BankingConfig {
 
             loader = YamlConfigurationLoader
                     .builder()
-                    .path(dataFolder.toPath().resolve("config.yml"))
+                    .path(dataFolder.toPath().resolve("language.yml"))
                     .nodeStyle(NodeStyle.BLOCK)
                     .build();
 
@@ -61,28 +163,14 @@ public class BankingConfig {
             generator = new ConfigGenerator(loader, configurationNode);
             generator.start()
                     .key("version").defValue(plugin.getDescription().getVersion())
-                    .key("locale").defValue("en")
-                    .key("name").defValue("&f&k[&c&lB&c&la&c&ln&c&lk&f&k]&f")
-                    .section("gui")
-                    .key("previous-item").defValue(Material.ARROW.name())
-                    .key("close-item").defValue(Material.BARRIER.name())
-                    .key("next-item").defValue(Material.ARROW.name())
-                    .section("offset")
-                    .key("ore").defValue(0)
-                    .key("deposit").defValue(9)
-                    .key("withdraw").defValue(18)
+                    .section("transaction")
+                    .key("deposit").defValue("%logo%&aDeposited %amount% %ore%")
+                    .key("withdraw").defValue("%logo%&bWithdrew %amount% %ore%")
                     .back()
-                    .back()
-                    .key("ores").defValue(
-                            List.of(
-                                    "minecraft:copper_ingot",
-                                    Material.IRON_INGOT.name(),
-                                    Material.GOLD_INGOT.name(),
-                                    Material.LAPIS_LAZULI.name(),
-                                    Material.EMERALD.name(),
-                                    Material.DIAMOND.name(),
-                                    Material.NETHERITE_INGOT.name(),
-                                    Material.ENDER_PEARL.name()));
+                    .key("above-zero").defValue("%logo%&cAmount must be above 0")
+                    .key("missing-ore").defValue("%logo%&cYou do not have the required %amount% %ore%")
+                    .key("invalid-ore").defValue("%logo%&c%ore% is not a valid bank ore")
+                    .key("missing-space").defValue("%logo%&cYou do not have enough place in inventory for %amount% %ore%");
 
             generator.saveIfModified();
         } catch (Exception ex) {
@@ -96,19 +184,6 @@ public class BankingConfig {
     }
 
     public void forceReload() {
-        /*
-         * loader = YamlConfigurationLoader
-         * .builder()
-         * .path(dataFolder.toPath().resolve("config.yml"))
-         * .nodeStyle(NodeStyle.BLOCK)
-         * .build();
-         * 
-         * try {
-         * configurationNode = loader.load();
-         * } catch (ConfigurateException e) {
-         * e.printStackTrace();
-         * }
-         */
         loadDefaults();
     }
 
@@ -182,54 +257,5 @@ public class BankingConfig {
             return def;
         }
         return str;
-    }
-
-    public @NotNull GUIConfig gui() {
-        return new GUIConfig();
-    }
-
-    public class GUIConfig {
-        public @NotNull Material previous() {
-            return Material.matchMaterial(getString("gui.previous-item"));
-        }
-
-        public @NotNull Material close() {
-            return Material.matchMaterial(getString("gui.close-item"));
-        }
-
-        public @NotNull Material next() {
-            return Material.matchMaterial(getString("gui.next-item"));
-        }
-
-        public @NotNull OffsetConfig offset() {
-            return new OffsetConfig();
-        }
-
-        public class OffsetConfig {
-            // withdraw
-            public @NotNull int ore() {
-                return getInt("gui.offset.ore", 0);
-            }
-
-            public @NotNull int deposit() {
-                return getInt("gui.offset.deposit", 9);
-            }
-
-            public @NotNull int withdraw() {
-                return getInt("gui.offset.withdraw", 18);
-            }
-        }
-    }
-
-    public @NotNull String logo() {
-        return getString("name");
-    }
-
-    public @NotNull List<String> ores() {
-        return getStringList("ores");
-    }
-
-    public @NotNull List<Material> oresMaterial() {
-        return getStringList("ores").stream().map(s -> Material.matchMaterial(s)).collect(Collectors.toList());
     }
 }
