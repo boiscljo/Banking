@@ -119,7 +119,7 @@ subprojects {
         relocate 'cloud.commandframework', 'com.moyskleytech.mc.lib.cloud'
         relocate 'me.lucko.commodore', 'com.moyskleytech.mc.lib.commodore'
         relocate 'org.screamingsandals.lib', 'com.moyskleytech.mc.lib.screaminglib'
-        relocate 'com.iridium.iridiumcolorapi.IridiumColorAPI', 'com.moyskleytech.mc.lib.simpleinventories'
+        relocate 'com.iridium.iridiumcolorapi', 'com.moyskleytech.mc.lib.iridiumcolorapi'
     }
 
     tasks.withType(JavaCompile) {
